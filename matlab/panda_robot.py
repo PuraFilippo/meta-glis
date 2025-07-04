@@ -2,7 +2,7 @@ import numpy as np
 from roboticstoolbox import DHRobot, RevoluteDH
 
 
-def panda_robot():
+def panda_robot(masses):
     mm = 1e-3
 
     d = np.array([333, 0, 316, 0, 384, 0, 107]) * mm
@@ -11,7 +11,7 @@ def panda_robot():
 
     L = [RevoluteDH(d=d[i], a=a[i], alpha=alpha[i]) for i in range(7)]
 
-    masses = [1, 0, 3, 0, 5, 0, 2.5]
+    # masses = [1, 0, 3, 0, 5, 0, 2.5]
     inertias = [[0.1, 0.1, 0.1, 0, 0, 0]] * 7
     centers = [
         [-d[0]/2, 0.0, 0.0],

@@ -216,7 +216,7 @@ if optimize
         'Verbose',0,...
         'AcquisitionFunctionName','expected-improvement',... %-plus',...
         'IsObjectiveDeterministic', true,... % simulations with noise --> objective function is not deterministic
-        'MaxObjectiveEvaluations', 100,...
+        'MaxObjectiveEvaluations', 10,...
         'MaxTime', inf,...
         'NumCoupledConstraints',0, ...
         'NumSeedPoint',10,...
@@ -355,14 +355,21 @@ ylabel('[degree]');
 legend('eq1','eq2','eq3','eq4','eq5','eq6','eq7')
 grid
 
-figure
-plot(t,q_r);
-hold on
-plot(t,q_msr);
-xlabel('time [s]');
-ylabel('[rad]');
-legend('q1','q2','q3','q4','q5','q6','q7','qmsr1','qmsr2','qmsr3','qmsr4','qmsr5','qmsr6','qmsr7')
-grid
+figure;
+for i = 1:7
+    subplot(7,1,i);
+    plot(t, q_r(:,i), '--', 'DisplayName', sprintf('q_r%d', i));
+    hold on;
+    plot(t, q_msr(:,i), '-', 'DisplayName', sprintf('q_msr%d', i));
+    ylabel('[rad]');
+    grid on;
+    legend show;
+    title(sprintf('Joint %d', i));
+    
+    if i == 7
+        xlabel('Time [s]');
+    end
+end
 
 figure
 plot(t,dq_r);

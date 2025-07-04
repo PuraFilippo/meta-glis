@@ -10,8 +10,8 @@ def obj_PID_panda(x_var, const, return_trace=False):
     Ki = np.diag([sim_var[f"Ki{i+1}"] for i in range(7)])
     Kd = np.diag([sim_var[f"Kd{i+1}"] for i in range(7)])
 
-    Robot = sim_var['Robot']
-    Robot_eval = panda_robot()
+    Robot = panda_robot(masses=np.array([1, 0, 3, 0, 5, 0, 2.5]))
+    Robot_eval = sim_var['Robot']
 
     Ts = sim_var['Ts']
     t = sim_var['time']
@@ -65,22 +65,22 @@ def obj_PID_panda(x_var, const, return_trace=False):
         dqerr[jj, :] = dq_r[jj, :] - dq_msr[jj, :]
         ddqerr[jj, :] = ddq_r[jj, :] - ddq_msr[jj, :]
 
-        # for k in range(n_DoFs):
-        #     if np.isnan(q_msr[jj, k]) or abs(qerr[jj, k]) > toll_qerr:
-        #         penalty[k] = 1e5 * np.exp(-t[jj])
-        #         exit_flag = True
-        #         break
+        for k in range(n_DoFs):
+            if np.isnan(q_msr[jj, k]) or abs(qerr[jj, k]) > toll_qerr:
+                penalty[k] = 1e5 * np.exp(-t[jj])
+                exit_flag = True
+                break
 
     if jj == len(t) - 1:
         J = np.sum(penalty)
         J += np.sum(np.sqrt(np.mean(qerr**2, axis=0)))
-        J += np.sum(np.std(qerr, axis=0))
         J += np.sum(np.sqrt(np.mean(dqerr**2, axis=0)))
-        J += np.sum(np.std(dqerr, axis=0))
         J += np.sum(np.max(np.abs(qerr), axis=0))
-        J += np.sum(np.abs(np.mean(qerr[-50:, :], axis=0)))
         J += np.sum(np.max(np.abs(dqerr), axis=0))
-        J += np.sum(np.abs(np.mean(dqerr[-50:, :], axis=0)))
+        # J += np.sum(np.std(qerr, axis=0))
+        # J += np.sum(np.std(dqerr, axis=0))
+        # J += np.sum(np.abs(np.mean(qerr[-50:, :], axis=0)))
+        # J += np.sum(np.abs(np.mean(dqerr[-50:, :], axis=0)))
     else:
         J = np.sum(penalty)
 
