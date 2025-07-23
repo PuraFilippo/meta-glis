@@ -29,10 +29,10 @@ def to_robot_dict(x):
 
 
 @torch.no_grad()
-def run_single_experiment(i, seed=134566):
+def run_single_experiment(i, seed=42):
     np.random.seed(seed + i)
 
-    latent_space = False
+    latent_space = True
     ts = 1e-3
     Tsim = 4.0
     time = np.arange(0, Tsim, ts)
@@ -127,13 +127,15 @@ def run_single_experiment(i, seed=134566):
         random_state=seed + i,
     )
 
-    x0 = [0., 0., 23.20590318, 0., 0., 26.04577232, 0., 17.2236932, 189.31349122, 50.36133633, 32.21360127, 0., 0.,
+    nominal_best_x0 = [0., 0., 23.20590318, 0., 0., 26.04577232, 0., 17.2236932, 189.31349122, 50.36133633, 32.21360127, 0., 0.,
           145.51627347, 9241.47318728, 13002.09987407, 12296.04897835, 10326.88976112, 7350.71219842, 8132.5718691,
           10527.77205599]
-    # TODO: encoder into decoder
 
+    latent_dimension_x0 = [0.6841, 0.01251, 0.1136, 0.9463, 0.8604, 0.8004, 0.01775, 0.1002, 0.7034, 0.9003]
+
+    x0 = decoder(torch.tensor(latent_dimension_x0).float().to(device)).cpu().numpy()
     if latent_space:
-        x0_encoded = encoder(torch.tensor(x0).float().to(device)).cpu().numpy()
+        x0_encoded = np.array(latent_dimension_x0)# encoder(torch.tensor(x0).float().to(device)).cpu().numpy()
 
         x0_dict = {}
         for i in range(10):
@@ -152,11 +154,11 @@ def run_single_experiment(i, seed=134566):
             x0_dict[f"Ki{i + 1}"] = ki_values[i]
             x0_dict[f"Kd{i + 1}"] = kd_values[i]
 
-    # optimizer.probe(params=x0_dict, lazy=True)
+    optimizer.probe(params=x0_dict, lazy=True)
 
     optimizer.maximize(
-        init_points=1,
-        n_iter=0,
+        init_points=0,
+        n_iter=299,
         acquisition_function=UtilityFunction(kind='ei')
     )
 
@@ -217,8 +219,11 @@ if __name__ == '__main__':
     runs_targets = np.array(runs_targets)
     robot_masses = np.array(robot_masses)
     print("--- %s seconds ---" % (time.time() - start))
-    np.save('q_r_test.npy', q_r)
-    np.save('q_measured_test.npy', q_measured)
-    np.save('runs_outputs_test.npy', runs_outputs)
-    np.save('runs_targets_test.npy', runs_targets)
-    np.save('robot_masses_test.npy', robot_masses)
+
+    loc = '../data/robot/'
+    ext_f = '_latent'
+    np.save(loc + 'q_r' + ext_f + '.npy', q_r)
+    np.save(loc + 'q_measured' + ext_f + '.npy', q_measured)
+    np.save(loc + 'runs_outputs' + ext_f + '.npy', runs_outputs)
+    np.save(loc + 'runs_targets' + ext_f + '.npy', runs_targets)
+    np.save(loc + 'robot_masses' + ext_f + '.npy', robot_masses)

@@ -14,20 +14,20 @@ plt.rcParams['axes.grid']=True
 plt.rcParams['axes.xmargin']=0
 
 n_DoFs = 7
-loc = ''
-ext_f = '_latent'
-ext_compare = '_latent'  # Set to None if you don't want to compare
+loc = '../data/robot/'
+ext_f = '_1joint_latent'
+ext_compare = '_1joint_latent'  # Set to None if you don't want to compare
 
 # --- Load main experiment ---
 q_r = np.load(loc + 'q_r' + ext_f + '.npy')
 q_measured = np.load(loc + 'q_measured' + ext_f + '.npy')
 runs_outputs = np.load(loc + 'runs_outputs' + ext_f + '.npy')
 runs_targets = np.load(loc + 'runs_targets' + ext_f + '.npy')
-# robot_masses = np.load(loc + 'robot_masses' + ext_f + '.npy')
+robot_masses = np.load(loc + 'robot_masses' + ext_f + '.npy')
 
 # --- Load comparison data if provided ---
 if ext_compare:
-    runs_targets_cmp = np.load('runs_targets' + ext_compare + '.npy')
+    runs_targets_cmp = np.load(loc + 'runs_targets' + ext_compare + '.npy')
 
 # --- Best params extraction (only for main experiment) ---
 best_params = []
@@ -127,8 +127,10 @@ plt.fill_between(iterations, mean_target - std_target, mean_target + std_target,
                  color='blue', alpha=0.3, label='Baseline ±1 Std Dev')
 
 if ext_compare:
-    plt.plot(iterations, mean_target_cmp, color='green', label='Latent Mean Incumbent')
-    plt.fill_between(iterations, mean_target_cmp - std_target_cmp, mean_target_cmp + std_target_cmp,
+    n_iterations_ext = runs_targets_cmp_clipped.shape[1]
+    iterations_ext = np.arange(n_iterations_ext)
+    plt.plot(iterations_ext, mean_target_cmp, color='green', label='Latent Mean Incumbent')
+    plt.fill_between(iterations_ext, mean_target_cmp - std_target_cmp, mean_target_cmp + std_target_cmp,
                      color='green', alpha=0.3, label='Latent ±1 Std Dev')
 
 
@@ -149,7 +151,7 @@ for i in range(n_experiments):
 
 if ext_compare:
     for i in range(runs_targets_cmp_clipped.shape[0]):
-        plt.plot(range(n_iterations), runs_targets_cmp_clipped[i], color='tab:green', alpha=0.2, lw=2)
+        plt.plot(range(n_iterations_ext), runs_targets_cmp_clipped[i], color='tab:green', alpha=0.2, lw=2)
 
 plt.xlabel("Iteration")
 plt.ylabel("Objective value (Log J)")
@@ -171,9 +173,9 @@ plot_outs(best_params_out, best_params_tgt)
 fig, axs = plt.subplots(n_DoFs, 1, figsize=(10, 2.5 * n_DoFs), sharex=True)
 for i in range(n_DoFs):
     for j in range(len(q_measured)):
-        axs[i].plot(q_measured[j, :, i], c='black', alpha=0.3)
-    axs[i].plot(q_r[:, i], c='r', label=f'q_r{i+1}')
-    axs[i].set_ylabel("Angle [rad]")
+        axs[i].plot(np.degrees(q_r[:, i] - q_measured[j, :, i]), c='black', alpha=0.3)
+    # axs[i].plot(q_r[:, i], c='r', label=f'q_r{i+1}')
+    axs[i].set_ylabel("Angle [deg]")
     axs[i].set_title(f"Joint {i+1}")
     axs[i].legend()
     axs[i].grid(True)
