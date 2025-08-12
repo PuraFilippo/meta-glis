@@ -1,17 +1,12 @@
 import time
 import numpy as np
-import numba as nb
 import torch
 import os
-import sys
-sys.path.append('/home/fpura/projects/meta-glis/')
-from panda_robot import panda_robot
-from obj_PID_panda import obj_PID_panda
+from frankapy import FrankaArm
+from obj_PID_panda_real import obj_PID_panda_real, obj_PID_panda_hw
 from bayes_opt import BayesianOptimization
 from bayes_opt.util import UtilityFunction
-from glis.solvers import GLIS
 from robot.models import Autoencoder
-from multiprocessing import Pool
 
 
 def to_robot_dict(x):
@@ -33,23 +28,21 @@ def run_single_experiment(i, seed=42):
     np.random.seed(seed + i)
 
     latent_space = True
-    ts = 1e-3
+    # ts = 1e-3
+    ts = 1e-2  # start safer at 100 Hz for first test
     Tsim = 4.0
     time = np.arange(0, Tsim, ts)
     n_DoFs = 7
     friction = np.array([2]*n_DoFs)
-    masses = np.array([1, 0, 3, 0, 5, 0, 2.5])
 
-    randomized_masses = [
-        m + (np.random.uniform(-1, 1)) if m != 0 else m + (np.random.uniform(0, 1)) for m in masses
-    ]
-    randomized_masses[-1] = masses[-1] + np.random.uniform(-1, 3)
-
-    Robot = panda_robot(randomized_masses)
+    # --- NEW: get current pose as q_0 ---
+    fa = FrankaArm()
+    fa.wait_for_franka_interface()
+    q_0 = np.array(fa.get_joints())  # <-- replaces your hard-coded q_0
 
     A = 15*np.pi/180
     f = 1
-    q_0 = np.array([-0.7160, -0.5850, 0.3504, -1.5666, 0.2241, -2.1201, -2.8398])
+    # q_0 = np.array([-0.7160, -0.5850, 0.3504, -1.5666, 0.2241, -2.1201, -2.8398])
     q_r = [q_0 - A]
     dq_r = [np.zeros(n_DoFs)]
     ddq_r = [np.zeros(n_DoFs)]
@@ -61,9 +54,12 @@ def run_single_experiment(i, seed=42):
 
     r = dict(q_r=np.array(q_r), dq_r=np.array(dq_r), ddq_r=np.array(ddq_r))
     const = dict(Ts=ts, Tsim=Tsim, time=time, n_DoFs=n_DoFs,
-                 r=r, Robot=Robot, Robot_friction=friction, q_0=q_0,
-                 toll_qerr=10*np.pi/180, masses=randomized_masses)
+                 r=r, Robot_friction=friction, q_0=q_0,
+                 toll_qerr=10*np.pi/180)
 
+    const['tau_limit'] = np.array([35, 35, 35, 35, 15, 15, 15], dtype=float)  # Nm, example
+    const['tau_rate_limit'] = np.full(7, 500.0)  # Nm/s
+    const['torque_thresholds'] = [25, 25, 25, 25, 10, 10, 10]
 
     # Configuration
     input_dim = 21
@@ -116,9 +112,9 @@ def run_single_experiment(i, seed=42):
             x_encoded = [*kwargs.values()]
             x = to_robot_dict(decoder(torch.tensor(x_encoded).float().to(device)).cpu().numpy())
 
-            return -np.log(obj_PID_panda(x, const))
+            return -np.log(obj_PID_panda_hw(x, const))
 
-        return -np.log(obj_PID_panda(kwargs, const))
+        return -np.log(obj_PID_panda_hw(kwargs, const))
 
     optimizer = BayesianOptimization(
         f=black_box_function,
@@ -173,7 +169,7 @@ def run_single_experiment(i, seed=42):
 
     targets = [it['target'] for it in iters]
 
-    cost, q_msr = obj_PID_panda(best_params, const, return_trace=True)
+    cost, q_msr = obj_PID_panda_hw(best_params, const, return_trace=True)
     q_r = r['q_r']
 
     q_r = q_r[:len(time)]
@@ -182,44 +178,35 @@ def run_single_experiment(i, seed=42):
     t = const['time']
     q_err = q_r - q_msr
 
-    Robot.plot(q_msr[::20], dt=ts)
-
     return dict(
         experiment=i,
         best_params=best_params,
         outs=outs,
         targets=targets,
         q_r=q_r,
-        q_measured=q_msr,
-        masses=randomized_masses
+        q_measured=q_msr
     )
 
 # Parallel execution
 if __name__ == '__main__':
-    n_experiments = 1
-    max_concurrent_processes = 10
-
     start = time.time()
-    with Pool(processes=max_concurrent_processes) as pool:
-        results = pool.map(run_single_experiment, range(n_experiments))
+
+    res = run_single_experiment(0)
 
     runs_outputs = []
     runs_targets = []
     q_measured = []
-    robot_masses = []
-    # Results is a list of dicts for each experiment
-    for res in results:
-        runs_outputs.append(res['outs'])
-        runs_targets.append(res['targets'])
-        q_measured.append(res['q_measured'])
-        robot_masses.append(res['masses'])
-        print(f"Experiment {res['experiment']} - Best Params: {res['best_params']}")
 
-    q_r = np.array(results[0]['q_r'])
+    runs_outputs.append(res['outs'])
+    runs_targets.append(res['targets'])
+    q_measured.append(res['q_measured'])
+
+    print(f"Experiment {res['experiment']} - Best Params: {res['best_params']}")
+
+    q_r = np.array(res['q_r'])
     q_measured = np.array(q_measured)
     runs_outputs = np.array(runs_outputs)
     runs_targets = np.array(runs_targets)
-    robot_masses = np.array(robot_masses)
     print("--- %s seconds ---" % (time.time() - start))
 
     loc = '../data/robot/'
