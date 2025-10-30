@@ -32,12 +32,12 @@ def to_robot_dict(x):
 def run_single_experiment(i, seed=42):
     np.random.seed(seed + i)
 
-    latent_space = True
+    latent_space = False
     ts = 1e-3
     Tsim = 4.0
     time = np.arange(0, Tsim, ts)
     n_DoFs = 7
-    friction = np.array([2]*n_DoFs)
+    friction = np.array([200]*n_DoFs)
     masses = np.array([1, 0, 3, 0, 5, 0, 2.5])
 
     randomized_masses = [
@@ -154,11 +154,11 @@ def run_single_experiment(i, seed=42):
             x0_dict[f"Ki{i + 1}"] = ki_values[i]
             x0_dict[f"Kd{i + 1}"] = kd_values[i]
 
-    optimizer.probe(params=x0_dict, lazy=True)
+    # optimizer.probe(params=x0_dict, lazy=True)
 
     optimizer.maximize(
         init_points=0,
-        n_iter=19,
+        n_iter=300,
         acquisition_function=UtilityFunction(kind='ei')
     )
 
@@ -182,7 +182,7 @@ def run_single_experiment(i, seed=42):
     t = const['time']
     q_err = q_r - q_msr
 
-    Robot.plot(q_msr[::20], dt=ts)
+    # Robot.plot(q_msr[::20], dt=ts)
 
     return dict(
         experiment=i,
@@ -196,7 +196,7 @@ def run_single_experiment(i, seed=42):
 
 # Parallel execution
 if __name__ == '__main__':
-    n_experiments = 1
+    n_experiments = 10
     max_concurrent_processes = 10
 
     start = time.time()
@@ -223,9 +223,9 @@ if __name__ == '__main__':
     print("--- %s seconds ---" % (time.time() - start))
 
     loc = '../data/robot/'
-    ext_f = '_latent'
-    # np.save(loc + 'q_r' + ext_f + '.npy', q_r)
-    # np.save(loc + 'q_measured' + ext_f + '.npy', q_measured)
-    # np.save(loc + 'runs_outputs' + ext_f + '.npy', runs_outputs)
-    # np.save(loc + 'runs_targets' + ext_f + '.npy', runs_targets)
-    # np.save(loc + 'robot_masses' + ext_f + '.npy', robot_masses)
+    ext_f = '_friction-high'
+    np.save(loc + 'q_r' + ext_f + '.npy', q_r)
+    np.save(loc + 'q_measured' + ext_f + '.npy', q_measured)
+    np.save(loc + 'runs_outputs' + ext_f + '.npy', runs_outputs)
+    np.save(loc + 'runs_targets' + ext_f + '.npy', runs_targets)
+    np.save(loc + 'robot_masses' + ext_f + '.npy', robot_masses)

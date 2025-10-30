@@ -35,7 +35,7 @@ def run_single_experiment(i, seed=42):
     n_DoFs = 7
     friction = np.array([2]*n_DoFs)
 
-    # --- NEW: get current pose as q_0 ---
+    # Get current pose as q_0
     fa = FrankaArm()
     fa.wait_for_franka_interface()
     q_0 = np.array(fa.get_joints())  # <-- replaces your hard-coded q_0

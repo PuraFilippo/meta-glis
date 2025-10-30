@@ -15,8 +15,8 @@ plt.rcParams['axes.xmargin']=0
 
 n_DoFs = 7
 loc = '../data/robot/'
-ext_f = '_1joint_latent'
-ext_compare = '_1joint_latent'  # Set to None if you don't want to compare
+ext_f = '_friction-high'
+ext_compare = '_friction'  # Set to None if you don't want to compare
 
 # --- Load main experiment ---
 q_r = np.load(loc + 'q_r' + ext_f + '.npy')
